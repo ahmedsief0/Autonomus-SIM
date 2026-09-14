@@ -1,0 +1,33 @@
+# ROS 2 Colcon Build Artifacts
+build/
+install/
+log/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.coverage
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ROS 2 Bags & temporary logs
+*.bag
+*.db3
+*.log
+core
+
+# Temporary test logs
+/tmp/
