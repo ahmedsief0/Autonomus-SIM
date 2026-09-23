@@ -64,7 +64,7 @@ class EKFLocalizationNode(Node):
         super().__init__('ekf_localization_node')
 
         # Parameters
-        self.declare_parameter('wheelbase', 0.22)
+        self.declare_parameter('wheelbase', 0.485) # 485 mm = 0.485 m
         self.declare_parameter('lidar_offset_x', 0.0)
         self.declare_parameter('lidar_range_std', 0.05)
         self.declare_parameter('lidar_angle_std', 0.02)

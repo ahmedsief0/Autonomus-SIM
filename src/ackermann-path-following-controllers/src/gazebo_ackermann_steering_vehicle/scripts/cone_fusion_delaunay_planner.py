@@ -62,20 +62,22 @@ class ConeFusionDelaunayPlanner(Node):
 
         # Parameters
         self.declare_parameter('controller_type', 'stanley')
-        self.declare_parameter('target_velocity', 2.5)
-        self.declare_parameter('lookahead_distance', 1.25)
-        self.declare_parameter('wheelbase', 0.22)
+        self.declare_parameter('target_velocity', 4.1667)  # 15 km/h = 4.1667 m/s
+        self.declare_parameter('max_steering_angle', 0.506145)  # 29 deg = 0.506145 rad
+        self.declare_parameter('lookahead_distance', 1.45)
+        self.declare_parameter('wheelbase', 0.485)  # 485 mm = 0.485 m
         self.declare_parameter('min_track_width', 0.8)
         self.declare_parameter('max_track_width', 3.2)
-        self.declare_parameter('planning_horizon', 8.5)
+        self.declare_parameter('planning_horizon', 10.5)
         self.declare_parameter('stanley_k', 2.2)
-        self.declare_parameter('stanley_ks', 0.4)
-        self.declare_parameter('stanley_kd', 0.08)
-        self.declare_parameter('ay_max', 2.8)
-        self.declare_parameter('min_velocity', 0.8)
+        self.declare_parameter('stanley_ks', 0.6)
+        self.declare_parameter('stanley_kd', 0.10)
+        self.declare_parameter('ay_max', 3.5)
+        self.declare_parameter('min_velocity', 1.2)
 
         self.controller_type = self.get_parameter('controller_type').value.lower()
         self.v_target = self.get_parameter('target_velocity').value
+        self.max_steer = self.get_parameter('max_steering_angle').value
         self.lookahead = self.get_parameter('lookahead_distance').value
         self.wheelbase = self.get_parameter('wheelbase').value
         self.min_track_w = self.get_parameter('min_track_width').value
@@ -164,12 +166,12 @@ class ConeFusionDelaunayPlanner(Node):
 
     def extract_and_fuse_cones(self):
         if self.latest_scan is None:
-            return []
+            return [], []
 
         ranges, angles, _ = self.latest_scan
         valid = (ranges > 0.15) & (ranges < self.horizon) & np.isfinite(ranges)
         if not np.any(valid):
-            return []
+            return [], []
 
         xs_loc = ranges[valid] * np.cos(angles[valid])
         ys_loc = ranges[valid] * np.sin(angles[valid])
@@ -192,17 +194,22 @@ class ConeFusionDelaunayPlanner(Node):
 
         mask_y = None
         mask_b = None
+        mask_r = None
+        mask_g = None
         debug_img = None
         if self.latest_cam_bgr is not None:
             debug_img = self.latest_cam_bgr.copy()
         if self.latest_cam_hsv is not None:
             mask_y = cv2.inRange(self.latest_cam_hsv, (15, 60, 60), (35, 255, 255))
             mask_b = cv2.inRange(self.latest_cam_hsv, (95, 60, 60), (135, 255, 255))
+            mask_r = cv2.inRange(self.latest_cam_hsv, (0, 70, 50), (10, 255, 255)) | cv2.inRange(self.latest_cam_hsv, (170, 70, 50), (180, 255, 255))
+            mask_g = cv2.inRange(self.latest_cam_hsv, (36, 60, 50), (85, 255, 255))
 
         cos_yaw = math.cos(self.veh_yaw)
         sin_yaw = math.sin(self.veh_yaw)
 
         classified_cones = []
+        noise_obstacles = []
         for cl in clusters:
             cx_l = float(np.mean([p[0] for p in cl]))
             cy_l = float(np.mean([p[1] for p in cl]))
@@ -217,41 +224,74 @@ class ConeFusionDelaunayPlanner(Node):
             wy = self.veh_y + cx_l * sin_yaw + cy_l * cos_yaw
 
             color = "unknown"
+            is_noise = False
+            noise_type = ""
             if mask_y is not None and cx_l > 0.25 and abs(phi) < math.radians(38):
                 u = int(-self.fx * math.tan(phi) + self.cx)
                 if 15 <= u < 625:
                     strip_y = mask_y[130:320, max(0, u-16):min(640, u+16)]
                     strip_b = mask_b[130:320, max(0, u-16):min(640, u+16)]
+                    strip_r = mask_r[130:320, max(0, u-16):min(640, u+16)] if mask_r is not None else None
+                    strip_g = mask_g[130:320, max(0, u-16):min(640, u+16)] if mask_g is not None else None
+
                     cnt_y = cv2.countNonZero(strip_y)
                     cnt_b = cv2.countNonZero(strip_b)
+                    cnt_r = cv2.countNonZero(strip_r) if strip_r is not None else 0
+                    cnt_g = cv2.countNonZero(strip_g) if strip_g is not None else 0
 
-                    if cnt_y > cnt_b and cnt_y >= 5:
+                    # 1. Distractor / Noise Detection (Red or Green 3D Obstacles)
+                    if cnt_r >= 6 and cnt_r > cnt_y and cnt_r > cnt_b:
+                        is_noise = True
+                        noise_type = "RED NOISE"
+                    elif cnt_g >= 6 and cnt_g > cnt_y and cnt_g > cnt_b:
+                        is_noise = True
+                        noise_type = "GREEN NOISE"
+                    # 2. Valid Cone Classification (Yellow or Blue)
+                    elif cnt_y > cnt_b and cnt_y >= 5:
                         color = "yellow"
                     elif cnt_b > cnt_y and cnt_b >= 5:
                         color = "blue"
+                    elif cnt_r >= 4 or cnt_g >= 4:
+                        is_noise = True
+                        noise_type = "DISTRACTOR"
 
-                    if debug_img is not None:
-                        dot_col = (0, 255, 255) if color == "yellow" else ((255, 120, 30) if color == "blue" else (180, 180, 180))
-                        cv2.rectangle(debug_img, (max(0, u-16), 150), (min(640, u+16), 260), dot_col, 1)
-                        cv2.circle(debug_img, (u, 200), 5, dot_col, -1)
-                        cv2.putText(debug_img, f"{color[0].upper()} {r:.1f}m", (u-15, 145),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, dot_col, 1)
+                    if is_noise:
+                        if debug_img is not None:
+                            # Draw prominent RED warning box on rejected noise polygon
+                            cv2.rectangle(debug_img, (max(0, u-18), 140), (min(640, u+18), 265), (0, 0, 255), 2)
+                            cv2.drawMarker(debug_img, (u, 202), (0, 0, 255), cv2.MARKER_TILTED_CROSS, 14, 2)
+                            cv2.putText(debug_img, f"{noise_type} {r:.1f}m", (u-30, 132),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 0, 255), 1)
+                    else:
+                        if debug_img is not None and color != "unknown":
+                            dot_col = (0, 255, 255) if color == "yellow" else (255, 120, 30)
+                            cv2.rectangle(debug_img, (max(0, u-16), 150), (min(640, u+16), 260), dot_col, 1)
+                            cv2.circle(debug_img, (u, 200), 5, dot_col, -1)
+                            cv2.putText(debug_img, f"{color[0].upper()} {r:.1f}m", (u-15, 145),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, dot_col, 1)
 
-            if color == "unknown":
-                color = "yellow" if cy_l < 0 else "blue"
+            if is_noise:
+                noise_obstacles.append({
+                    "loc_x": cx_l, "loc_y": cy_l,
+                    "world_x": wx, "world_y": wy,
+                    "type": noise_type, "range": r
+                })
+            else:
+                if color == "unknown":
+                    color = "yellow" if cy_l < 0 else "blue"
 
-            classified_cones.append({
-                "loc_x": cx_l, "loc_y": cy_l,
-                "world_x": wx, "world_y": wy,
-                "color": color, "range": r
-            })
+                classified_cones.append({
+                    "loc_x": cx_l, "loc_y": cy_l,
+                    "world_x": wx, "world_y": wy,
+                    "color": color, "range": r
+                })
 
         if debug_img is not None:
             try:
-                # Top HUD Banner
-                cv2.rectangle(debug_img, (0, 0), (640, 32), (18, 18, 18), -1)
-                hud_str = f"V: {self.veh_speed:.2f}m/s | Steer: {math.degrees(self.latest_steer):+.1f} deg | Cones: {len(classified_cones)} | Mode: {self.controller_type.upper()}"
-                cv2.putText(debug_img, hud_str, (10, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 255, 220), 1)
+                # Top HUD Banner with Noise Statistics
+                cv2.rectangle(debug_img, (0, 0), (640, 34), (18, 18, 18), -1)
+                hud_str = f"V: {self.veh_speed:.2f}m/s | Steer: {math.degrees(self.latest_steer):+.1f} deg | Cones: {len(classified_cones)} | Noise Filtered: {len(noise_obstacles)}"
+                cv2.putText(debug_img, hud_str, (8, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 220), 1)
 
                 ros_img = RosImage()
                 ros_img.header = self.latest_cam_header
@@ -265,7 +305,7 @@ class ConeFusionDelaunayPlanner(Node):
             except Exception:
                 pass
 
-        return classified_cones
+        return classified_cones, noise_obstacles
 
     def plan_delaunay_path(self, cones):
         blue_pts = [np.array([c["world_x"], c["world_y"]]) for c in cones if c["color"] == "blue"]
@@ -360,7 +400,7 @@ class ConeFusionDelaunayPlanner(Node):
             dx = path[0][0] - self.veh_x
             dy = path[0][1] - self.veh_y
             alpha = normalize_angle(math.atan2(dy, dx) - self.veh_yaw)
-            delta = float(np.clip(math.atan2(2.0 * self.wheelbase * math.sin(alpha), 1.0), -0.32, 0.32))
+            delta = float(np.clip(math.atan2(2.0 * self.wheelbase * math.sin(alpha), 1.0), -self.max_steer, self.max_steer))
             return self.min_velocity, delta, path[0]
 
         # 1. Front axle location (Stanley control reference point)
@@ -372,13 +412,16 @@ class ConeFusionDelaunayPlanner(Node):
         dists = np.linalg.norm(path_arr - front_pt, axis=1)
         idx = int(np.argmin(dists))
 
-        # 2. Path tangent and reference heading
-        if idx < len(path) - 1:
+        # 2. Path tangent and reference heading (classical Stanley)
+        if idx < len(path_arr) - 1:
             p_curr = path_arr[idx]
             p_next = path_arr[idx + 1]
-        else:
+        elif idx > 0:
             p_curr = path_arr[idx - 1]
             p_next = path_arr[idx]
+        else:
+            p_curr = path_arr[0]
+            p_next = path_arr[0] + np.array([math.cos(self.veh_yaw), math.sin(self.veh_yaw)])
 
         tangent = p_next - p_curr
         tan_norm = np.linalg.norm(tangent) + 1e-6
@@ -402,25 +445,32 @@ class ConeFusionDelaunayPlanner(Node):
         yaw_damping = self.stanley_kd * self.veh_yaw_rate
 
         delta = theta_e + delta_cte - yaw_damping
-        delta = float(np.clip(delta, -0.32, 0.32))
+        delta = float(np.clip(delta, -self.max_steer, self.max_steer))
 
-        # 7. Curvature-Adaptive Speed Profiling
-        if 0 < idx < len(path) - 1:
-            v1 = path_arr[idx] - path_arr[idx - 1]
-            v2 = path_arr[idx + 1] - path_arr[idx]
+        # 7. Anticipatory Curvature-Adaptive Speed Profiling
+        min_v_curve = self.v_target
+        a_brake = 3.0  # Anticipatory deceleration capacity (m/s^2)
+        cum_d = 0.0
+        for k in range(max(1, idx), min(len(path_arr) - 1, idx + 14)):
+            step_len = float(np.linalg.norm(path_arr[k] - path_arr[k - 1]))
+            cum_d += step_len
+            v1 = path_arr[k] - path_arr[k - 1]
+            v2 = path_arr[k + 1] - path_arr[k]
             th1 = math.atan2(v1[1], v1[0])
             th2 = math.atan2(v2[1], v2[0])
-            d_th = normalize_angle(th2 - th1)
+            d_th = abs(normalize_angle(th2 - th1))
             ds = 0.5 * (np.linalg.norm(v1) + np.linalg.norm(v2)) + 1e-6
-            kappa = abs(d_th / ds)
-            v_curve = math.sqrt(self.ay_max / (kappa + 1e-4))
-            v_cmd = min(self.v_target, v_curve)
-        else:
-            v_cmd = self.v_target
+            kappa = d_th / ds
+            v_turn = math.sqrt(self.ay_max / (kappa + 1e-4))
+            v_entry_limit = math.sqrt(v_turn * v_turn + 2.0 * a_brake * cum_d)
+            if v_entry_limit < min_v_curve:
+                min_v_curve = v_entry_limit
 
-        # Lateral acceleration protection based on steering angle
-        steer_ratio = abs(delta) / 0.32
-        v_cmd = min(v_cmd, self.v_target * (1.0 - 0.45 * steer_ratio))
+        v_cmd = min(self.v_target, min_v_curve)
+
+        # Steering angle speed attenuation
+        steer_ratio = abs(delta) / self.max_steer
+        v_cmd = min(v_cmd, self.v_target * (1.0 - 0.52 * steer_ratio))
         v_cmd = float(np.clip(v_cmd, self.min_velocity, self.v_target))
 
         return v_cmd, delta, p_curr
@@ -447,9 +497,9 @@ class ConeFusionDelaunayPlanner(Node):
         alpha = normalize_angle(angle_to_target - self.veh_yaw)
 
         delta = math.atan2(2.0 * self.wheelbase * math.sin(alpha), self.lookahead)
-        delta = float(np.clip(delta, -0.32, 0.32))
+        delta = float(np.clip(delta, -self.max_steer, self.max_steer))
 
-        steer_ratio = abs(delta) / 0.32
+        steer_ratio = abs(delta) / self.max_steer
         v_cmd = self.v_target * (1.0 - 0.30 * steer_ratio)
 
         return v_cmd, delta, target_pt
@@ -458,8 +508,8 @@ class ConeFusionDelaunayPlanner(Node):
         if not self.has_odom:
             return
 
-        cones = self.extract_and_fuse_cones()
-        if not cones:
+        cones, noise_obstacles = self.extract_and_fuse_cones()
+        if not cones and not noise_obstacles:
             return
 
         path, cross_edges, midpoints, mesh_edges = self.plan_delaunay_path(cones)
@@ -481,7 +531,7 @@ class ConeFusionDelaunayPlanner(Node):
             self.pub_steer.publish(s_msg)
 
         self.publish_rviz_path(path)
-        self.publish_rviz_markers(cones, cross_edges, midpoints, mesh_edges, target_pt)
+        self.publish_rviz_markers(cones, cross_edges, midpoints, mesh_edges, target_pt, noise_obstacles)
 
     def publish_rviz_path(self, path):
         if not path:
@@ -507,7 +557,7 @@ class ConeFusionDelaunayPlanner(Node):
 
         self.pub_path.publish(path_msg)
 
-    def publish_rviz_markers(self, cones, cross_edges, midpoints, mesh_edges, target_pt):
+    def publish_rviz_markers(self, cones, cross_edges, midpoints, mesh_edges, target_pt, noise_obstacles=None):
         ma = MarkerArray()
         stamp = self.get_clock().now().to_msg()
 
@@ -596,6 +646,26 @@ class ConeFusionDelaunayPlanner(Node):
                 m_mesh.points.append(pt1)
                 m_mesh.points.append(pt2)
             ma.markers.append(m_mesh)
+
+        if noise_obstacles:
+            m_noise = Marker()
+            m_noise.header.frame_id = "map"
+            m_noise.header.stamp = stamp
+            m_noise.ns = "noise_obstacles_rejected"
+            m_noise.id = 99
+            m_noise.type = Marker.CUBE_LIST
+            m_noise.action = Marker.ADD
+            m_noise.scale.x = 0.28
+            m_noise.scale.y = 0.28
+            m_noise.scale.z = 0.28
+            m_noise.color.r = 1.0
+            m_noise.color.g = 0.05
+            m_noise.color.b = 0.05
+            m_noise.color.a = 0.95
+            for n in noise_obstacles:
+                pt = Point(x=float(n["world_x"]), y=float(n["world_y"]), z=0.14)
+                m_noise.points.append(pt)
+            ma.markers.append(m_noise)
 
         if target_pt is not None:
             m_tgt = Marker()

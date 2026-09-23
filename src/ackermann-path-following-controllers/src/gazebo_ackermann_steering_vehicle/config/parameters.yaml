@@ -1,22 +1,23 @@
 /**:
   ros__parameters:
-    # Body params
-    body_length: 0.3 # Length of the vehicle's body [m]
-    body_width: 0.18 # Width of the vehicle's body [m]
+    # Body params (body_length = 0.565m gives wheelbase = body_length - 2*wheel_radius = 0.485m = 485mm)
+    body_length: 0.565 # Length of the vehicle's body [m]
+    body_width: 0.20 # Width of the vehicle's body [m]
     body_height: 0.05 # Height of the vehicle's body [m]
-    body_density: 7850.0 # Density of the vehicle's body material, e.g., steel [kg/m^3]
+    body_density: 2500.0 # Density of the vehicle's body material [kg/m^3]
 
     # Wheel params
     wheel_radius: 0.04 # Radius of each wheel [m]
-    wheel_width: 0.02 # Width of each wheel [m]
-    wheel_density: 900.0 # Density of the wheel material, e.g., rubber [kg/m^3]
+    wheel_width: 0.025 # Width of each wheel [m]
+    wheel_density: 900.0 # Density of the wheel material [kg/m^3]
 
     # Kinematics and dynamics params
-    max_steering_angle: 0.6108652 # Maximum steering angle of the vehicle [rad]
-    max_steering_angular_velocity: 1.570796 # Maximum steering angular velocity [rad/s]
-    max_steering_effort: 1.0 # Maximum steering torque [Nm]
-    max_velocity: 2.0 # Maximum wheel velocity [m/s]
-    max_effort: 10.0 # Maximum wheel torque [Nm]
+    wheelbase: 0.485 # Explicit vehicle wheelbase: 485 mm = 0.485 m
+    max_steering_angle: 0.506145 # Maximum steering angle: 29 degrees = 0.506145 rad
+    max_steering_angular_velocity: 3.5 # Maximum steering angular velocity [rad/s]
+    max_steering_effort: 25.0 # Maximum steering torque [Nm]
+    max_velocity: 4.1667 # Maximum velocity: 15 km/h = 4.1667 m/s
+    max_effort: 60.0 # Maximum wheel torque [Nm]
 
     # Camera and image params
     camera_box_size: 0.05 # Size of the camera enclosure [m]

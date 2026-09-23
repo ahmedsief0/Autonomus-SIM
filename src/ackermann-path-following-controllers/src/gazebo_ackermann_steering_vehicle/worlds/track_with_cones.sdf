@@ -69,6 +69,149 @@
       </link>
     </model>
 
+    <!-- ==================== NOISE POLYGONS (TESTING CAMERA-LIDAR FUSION) ==================== -->
+    <!-- 1. Flat Yellow Polygon on Ground (Visual Noise / False Road Marking) -->
+    <model name="noise_poly_yellow_ground_1">
+      <static>true</static>
+      <pose>2.4 0.18 0.001 0 0 0.4</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.45 0.35 0.002</size></box>
+          </geometry>
+          <material>
+            <ambient>0.98 0.88 0.05 1.0</ambient>
+            <diffuse>1.00 0.92 0.08 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 2. Flat Blue Polygon on Ground (Visual Noise / False Road Marking) -->
+    <model name="noise_poly_blue_ground_2">
+      <static>true</static>
+      <pose>4.0 -0.15 0.001 0 0 -0.3</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.50 0.38 0.002</size></box>
+          </geometry>
+          <material>
+            <ambient>0.08 0.35 0.98 1.0</ambient>
+            <diffuse>0.12 0.42 1.00 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 3. 3D Red Polygonal Block (Physical Obstacle / Non-Cone Distractor) -->
+    <model name="noise_poly_red_3d_1">
+      <static>true</static>
+      <pose>5.2 0.42 0.125 0 0 0.6</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.24 0.24 0.25</size></box>
+          </geometry>
+          <material>
+            <ambient>0.95 0.05 0.05 1.0</ambient>
+            <diffuse>1.00 0.10 0.10 1.0</diffuse>
+            <specular>0.4 0.4 0.4 1.0</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.24 0.24 0.25</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- 4. Flat Green Polygon on Ground (Visual Noise) -->
+    <model name="noise_poly_green_ground_3">
+      <static>true</static>
+      <pose>6.8 0.10 0.001 0 0 0.2</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.42 0.36 0.002</size></box>
+          </geometry>
+          <material>
+            <ambient>0.08 0.88 0.12 1.0</ambient>
+            <diffuse>0.10 0.95 0.15 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 5. 3D Green Polygonal Block (Physical Obstacle / Non-Cone Distractor) -->
+    <model name="noise_poly_green_3d_2">
+      <static>true</static>
+      <pose>7.8 -0.38 0.125 0 0 -0.5</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.25 0.25 0.25</size></box>
+          </geometry>
+          <material>
+            <ambient>0.05 0.90 0.15 1.0</ambient>
+            <diffuse>0.10 0.98 0.20 1.0</diffuse>
+            <specular>0.3 0.3 0.3 1.0</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.25 0.25 0.25</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- 6. Flat Magenta Polygon on Ground (Visual Noise) -->
+    <model name="noise_poly_magenta_ground_4">
+      <static>true</static>
+      <pose>9.5 -0.12 0.001 0 0 0.7</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.48 0.32 0.002</size></box>
+          </geometry>
+          <material>
+            <ambient>0.88 0.08 0.88 1.0</ambient>
+            <diffuse>0.98 0.12 0.98 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 7. 3D Orange/Purple Polygonal Block (Physical Obstacle / Non-Cone Distractor) -->
+    <model name="noise_poly_orange_3d_3">
+      <static>true</static>
+      <pose>11.2 0.35 0.125 0 0 0.3</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.26 0.26 0.25</size></box>
+          </geometry>
+          <material>
+            <ambient>0.95 0.45 0.05 1.0</ambient>
+            <diffuse>1.00 0.50 0.10 1.0</diffuse>
+            <specular>0.3 0.3 0.3 1.0</specular>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.26 0.26 0.25</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+    <!-- ====================================================================================== -->
+
     <model name="cone_blue_0">
       <static>true</static>
       <pose>-0.0129 0.7499 0.11 0 0 0</pose>

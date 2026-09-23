@@ -23,6 +23,7 @@ VehicleController::VehicleController(const double timer_period, const double tim
   declare_parameter<double>("body_length", 0.0);
   declare_parameter<double>("wheel_radius", 0.0);
   declare_parameter<double>("wheel_width", 0.0);
+  declare_parameter<double>("wheelbase", 0.0);
   declare_parameter<double>("max_steering_angle", 0.0);
   declare_parameter<double>("max_velocity", 0.0);
 
@@ -34,9 +35,16 @@ VehicleController::VehicleController(const double timer_period, const double tim
   get_parameter("max_steering_angle", max_steering_angle_);
   get_parameter("max_velocity", max_velocity_);
 
+  double explicit_wheelbase = 0.0;
+  get_parameter("wheelbase", explicit_wheelbase);
+
   // Set the track width and wheel base
   track_width_ = body_width_ + (2 * wheel_width_ / 2);
-  wheel_base_ = body_length_ - (2 * wheel_radius_);
+  if (explicit_wheelbase > 0.0) {
+    wheel_base_ = explicit_wheelbase;
+  } else {
+    wheel_base_ = body_length_ - (2 * wheel_radius_);
+  }
 
   // Subscribers
   steering_angle_subscriber_ = create_subscription<std_msgs::msg::Float64>(

@@ -87,6 +87,9 @@ flowchart TD
 ```
 gokart_ws/
 ├── docs/                                                 # Comprehensive technical documentation & reports
+│   ├── stanley_k_sweep_report.md                                # Stanley Gain (k=0.8-3.0) Sweep & 2-Lap Verification Report
+│   ├── high_speed_15kmh_run_report.md                           # High-Speed 15 km/h Full Circuit Tracking Report
+│   ├── camera_lidar_noise_fusion_evaluation.md                  # Camera-LiDAR Sensor Fusion & Noise Rejection Evaluation
 │   ├── Autonomous_Ackermann_Formula_Student_Master_Report.pdf   # 40+ page Master Thesis / Project Report (PDF)
 │   ├── Autonomous_Ackermann_Formula_Student_Master_Report.docx  # Editable Word Master Document
 │   └── full_project_master_report.md                            # Complete Markdown Project Reference
