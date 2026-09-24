@@ -200,10 +200,10 @@ class ConeFusionDelaunayPlanner(Node):
         if self.latest_cam_bgr is not None:
             debug_img = self.latest_cam_bgr.copy()
         if self.latest_cam_hsv is not None:
-            mask_y = cv2.inRange(self.latest_cam_hsv, (18, 80, 70), (32, 255, 255))
-            mask_b = cv2.inRange(self.latest_cam_hsv, (100, 80, 60), (130, 255, 255))
-            mask_r = cv2.inRange(self.latest_cam_hsv, (0, 90, 60), (8, 255, 255)) | cv2.inRange(self.latest_cam_hsv, (172, 90, 60), (180, 255, 255))
-            mask_g = cv2.inRange(self.latest_cam_hsv, (38, 70, 50), (82, 255, 255))
+            mask_y = cv2.inRange(self.latest_cam_hsv, (15, 60, 60), (35, 255, 255))
+            mask_b = cv2.inRange(self.latest_cam_hsv, (95, 60, 60), (135, 255, 255))
+            mask_r = cv2.inRange(self.latest_cam_hsv, (0, 70, 50), (10, 255, 255)) | cv2.inRange(self.latest_cam_hsv, (170, 70, 50), (180, 255, 255))
+            mask_g = cv2.inRange(self.latest_cam_hsv, (36, 60, 50), (85, 255, 255))
 
         cos_yaw = math.cos(self.veh_yaw)
         sin_yaw = math.sin(self.veh_yaw)
@@ -229,21 +229,15 @@ class ConeFusionDelaunayPlanner(Node):
             if mask_y is not None and cx_l > 0.25 and abs(phi) < math.radians(38):
                 u = int(-self.fx * math.tan(phi) + self.cx)
                 if 15 <= u < 625:
-                    half_w = int(np.clip(self.fx * 0.16 / max(r, 0.5), 6, 45))
-                    row_top, row_bot = 130, 320
-                    strip_y = mask_y[row_top:row_bot, max(0, u-half_w):min(640, u+half_w)]
-                    strip_b = mask_b[row_top:row_bot, max(0, u-half_w):min(640, u+half_w)]
-                    strip_r = mask_r[row_top:row_bot, max(0, u-half_w):min(640, u+half_w)] if mask_r is not None else None
-                    strip_g = mask_g[row_top:row_bot, max(0, u-half_w):min(640, u+half_w)] if mask_g is not None else None
+                    strip_y = mask_y[130:320, max(0, u-16):min(640, u+16)]
+                    strip_b = mask_b[130:320, max(0, u-16):min(640, u+16)]
+                    strip_r = mask_r[130:320, max(0, u-16):min(640, u+16)] if mask_r is not None else None
+                    strip_g = mask_g[130:320, max(0, u-16):min(640, u+16)] if mask_g is not None else None
 
-                    win_area = max(strip_y.size, 1)
                     cnt_y = cv2.countNonZero(strip_y)
                     cnt_b = cv2.countNonZero(strip_b)
                     cnt_r = cv2.countNonZero(strip_r) if strip_r is not None else 0
                     cnt_g = cv2.countNonZero(strip_g) if strip_g is not None else 0
-
-                    min_frac = 0.006
-                    min_cnt = max(5, int(win_area * min_frac))
 
                     # 1. Distractor / Noise Detection (Red or Green 3D Obstacles)
                     if cnt_r >= 6 and cnt_r > cnt_y and cnt_r > cnt_b:
@@ -253,9 +247,9 @@ class ConeFusionDelaunayPlanner(Node):
                         is_noise = True
                         noise_type = "GREEN NOISE"
                     # 2. Valid Cone Classification (Yellow or Blue)
-                    elif cnt_y > cnt_b and cnt_y >= min_cnt:
+                    elif cnt_y > cnt_b and cnt_y >= 5:
                         color = "yellow"
-                    elif cnt_b > cnt_y and cnt_b >= min_cnt:
+                    elif cnt_b > cnt_y and cnt_b >= 5:
                         color = "blue"
                     elif cnt_r >= 4 or cnt_g >= 4:
                         is_noise = True
